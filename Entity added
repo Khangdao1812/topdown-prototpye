@@ -1,0 +1,309 @@
+import pygame as pg
+import sys
+import math
+
+# Khởi tạo màn hình
+screenx , screeny = 600,600
+screen = pg.display.set_mode((screenx,screeny))
+pg.display.set_caption("Shooting")
+
+# Biến toàn cục
+running = True
+color = 0
+width, height = 45,20
+angle = 0
+step = 5
+TILE = 40
+camx = screenx/2
+camy = screeny/2
+setup_x= 0
+bullet_speed = 20
+eps = 1e-3
+map_surface = pg.Surface((width*TILE, height*TILE))
+clock = pg.time.Clock()
+
+# Bản đồ
+map = [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+       [1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+       [1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+       [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+       [1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,1,1,1,1],
+       [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,0,0,0,0,1,2,2,2],
+       [1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,0,0,0,0,1,2,2,2],
+       [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,2,2,2,2,2,2,2,2,2,2,2,2,1,0,0,0,0,0,0,0,0,1,2,2,2],
+       [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,2,2,2]]
+
+class Entity : 
+    def __init__(self):
+        pass
+    
+
+class Raycaster : 
+    @staticmethod
+    def DDA(x,y,dx,dy):
+        value_vertical = 0
+        value_horizontal = 0
+        if abs(dx)<eps : t_vertical = float('inf')
+        else : 
+            wall_x_vertical = int(TILE*(x//TILE+(1 if dx>0 else 0)))
+            t_vertical = (wall_x_vertical-x)/dx
+            wall_y_vertical = y+dy*t_vertical
+        if abs(dy)<eps : t_horizontal = float('inf')
+        else : 
+            wall_y_horizontal = int(TILE*(y//TILE+(0 if dy<0 else 1)))
+            t_horizontal = (wall_y_horizontal-y)/dy
+            wall_x_horizontal = x+dx*t_horizontal
+        increment_x_vertical = TILE*(1 if dx>0 else -1)
+        increment_y_horizontal= TILE*(1 if dy>0 else -1)
+        while True : 
+            if t_vertical != float('inf') :
+                yv, xv = int(wall_y_vertical//TILE), int(wall_x_vertical//TILE)
+                if dx <0 : xv -=1
+                if yv in range(len(map)) and xv in range(len(map[yv])) : 
+                    value_vertical = map[yv][xv]
+                if value_vertical == 2 : value_vertical = 1 #ra ngoài
+            else : value_vertical = 1
+            if t_horizontal != float('inf') : 
+                xh, yh = int(wall_x_horizontal//TILE), int(wall_y_horizontal//TILE)
+                if dy<0 : yh -=1
+                if yh in range(len(map)) and xh in range(len(map[yh])) : 
+                    value_horizontal = map[yh][xh]
+                if value_horizontal == 2 : value_horizontal =1 #ra ngoài
+            else : value_horizontal = 1
+            if value_vertical ==1 and value_horizontal ==1 : 
+                if t_vertical < t_horizontal : 
+                    return wall_x_vertical, wall_y_vertical
+                elif t_vertical >t_horizontal or abs(t_vertical-t_horizontal)<eps : 
+                    return wall_x_horizontal, wall_y_horizontal
+            elif value_vertical ==0 and value_horizontal ==0 :
+                if t_vertical <t_horizontal : 
+                    wall_x_vertical += TILE*(1 if dx>0 else -1)
+                    t_vertical += increment_x_vertical/dx
+                    wall_y_vertical += dy*increment_x_vertical/dx
+
+                elif t_vertical>t_horizontal or abs(t_vertical-t_horizontal)<eps : 
+                    wall_y_horizontal += increment_y_horizontal
+                    t_horizontal += increment_y_horizontal/dy
+                    wall_x_horizontal += dx*increment_y_horizontal/dy
+            elif value_vertical == 0 and value_horizontal ==1:
+                if t_horizontal > t_vertical : 
+                    wall_x_vertical += TILE*(1 if dx>0 else -1)
+                    t_vertical += increment_x_vertical/dx
+                    wall_y_vertical += dy*increment_x_vertical/dx 
+                else : return wall_x_horizontal, wall_y_horizontal
+            else : # value_vertical == 1 and  value_horizontal == 0: 
+                if t_vertical > t_horizontal : 
+                    wall_y_horizontal += increment_y_horizontal
+                    t_horizontal += increment_y_horizontal/dy
+                    wall_x_horizontal += dx*increment_y_horizontal/dy
+                else : return wall_x_vertical, wall_y_vertical
+
+class Bullet(Entity) : 
+    def __init__(self,using) : 
+        self.using = using
+    def activate(self,x,y,dx,dy,alive,hitx,hity) : 
+        self.x = x
+        self.y= y
+        self.dx = dx
+        self.dy=dy
+        self.alive= alive
+        self.hitx = hitx
+        self.hity = hity    
+        self.using = True
+    def de_activate(self) : 
+        self.using = False
+    def fly(self) : 
+        self.x += bullet_speed*self.dx
+        self.y += bullet_speed*self.dy
+        passed_hitpoint= (self.dx != 0 and (self.x - self.hitx) * self.dx >= 0) or (self.dy != 0 and (self.y - self.hity) * self.dy >= 0)
+        if passed_hitpoint : 
+            self.x = self.hitx
+            self.y = self.hity
+            self.alive = False
+
+class bullet_manager : 
+    def __init__(self,max_bullets) : 
+        self.bullets = [Bullet(False) for _ in range(max_bullets)]
+
+    def spawn(self,x,y,dx,dy) : 
+        hit_x, hit_y = Raycaster.DDA(x,y,dx,dy)
+        for p in self.bullets : 
+            if p.using == False : #if it is not used then activate it
+                p.activate(x,y,dx,dy,True,hit_x,hit_y) #use it+reset the position
+                return
+
+    def update_bullet(self) : 
+        for individual_bullet in self.bullets : 
+            if individual_bullet.using : #if it is not activated then skip the update
+                if not individual_bullet.alive :
+                    individual_bullet.de_activate()
+                else : individual_bullet.fly()
+            else : continue
+    
+    def draw_bullets(self,surface,cx,cy) : 
+        for p in range(0,len(self.bullets)) : 
+            b = self.bullets[p]
+            if b.using : #if it is not activated then do not render it
+                offscreen = not 0<b.x - cx + screenx/2 <602 or not 0<b.y - cy + screeny/2<602
+                if not offscreen : 
+                    pg.draw.circle(surface, 'black',(b.x- cx + screenx/2, b.y- cy + screeny/2), 2)
+            else : continue
+
+class Map : 
+    @staticmethod 
+    def render_map() : 
+        map_surface.fill('grey')
+        for y in range(height) : 
+            for x in range(width) :
+                if map[y][x]== 0 : 
+                    pg.draw.rect(map_surface, 'white', (x*TILE,y*TILE, TILE-1, TILE-1))
+                elif map[y][x]== 1 : pg.draw.rect(map_surface, 'black', (x*TILE,y*TILE, TILE-1, TILE-1))
+                else : continue
+    def draw_map(input_x, input_y):
+        screen.blit(map_surface,(int(-input_x+screenx//2),int(-input_y+screeny//2)))
+
+class Main_player(Entity) : 
+    def __init__(self, startx:int,starty:int,angle) : 
+        self.angle = angle
+        self.real_px = (startx-1)*TILE + TILE/2
+        self.real_py = (starty-1)*TILE +TILE/2
+        self.camx = self.real_px
+        self.camy = self.real_py
+        self.lastshot= 0
+        self.shotdelay = 100
+        
+    def track_position(self) : 
+        self.camx = self.real_px
+        self.camy = self.real_py
+        self.tile_posx = int(self.real_px//TILE)
+        self.tile_posy = int(self.real_py//TILE)
+
+    def handle_collision(self) : 
+        tile_ox = int((self.real_px+self.pdx)//TILE)
+        tile_oy = int((self.real_py+self.pdy)//TILE)
+        if map[self.tile_posy][tile_ox] != 0 :
+            self.pdx = 0
+        if map[tile_oy][self.tile_posx] !=0 : 
+            self.pdy = 0
+        self.real_px += self.pdx
+        self.real_py += self.pdy
+        self.camx, self.camy = self.real_px,self.real_py
+
+    def track_keys(self) : 
+        global running,step
+        current_time = pg.time.get_ticks()
+        mousex, mousey = pg.mouse.get_pos()
+        for event in pg.event.get():
+            if event.type == pg.QUIT:
+                running = False
+        mousedown = pg.mouse.get_pressed()
+        pressing = pg.key.get_pressed()
+        self.angle = math.atan2(mousey-self.real_py + self.camy - screeny/2,mousex-self.real_px + self.camx - screenx/2) #atan2 chậm
+        check_vertex = 4*self.angle/math.pi
+        z = check_vertex- round(check_vertex)
+        if abs(z)<1e-6 :  
+            self.angle += 1e-6*(1 if z>=0 else -1)  #dodging the vertex case
+        self.dirvectorx = math.cos(self.angle)
+        self.dirvectory = math.sin(self.angle)
+        if mousedown[0] :
+            if current_time - self.lastshot>self.shotdelay : 
+                bullet_managers.spawn(self.real_px,self.real_py,self.dirvectorx,self.dirvectory)
+                self.lastshot = current_time
+        if pressing[pg.K_w]:
+            self.pdx = step * self.dirvectorx
+            self.pdy = step * self.dirvectory
+            self.handle_collision()
+        if pressing[pg.K_s]:
+            self.pdx = -step * self.dirvectorx
+            self.pdy = -step * self.dirvectory
+            self.handle_collision() 
+        if pressing[pg.K_a]:
+            self.pdx = -step * -self.dirvectory
+            self.pdy = -step * self.dirvectorx
+            self.handle_collision()
+        if pressing[pg.K_d]:
+            self.pdx = step * -self.dirvectory
+            self.pdy = step * self.dirvectorx
+            self.handle_collision()
+
+    def render_player(self): 
+        px = self.real_px - self.camx + screenx/2
+        py = self.real_py - self.camy + screeny/2
+        pg.draw.circle(screen, 'green', (px, py), 4)
+        pg.draw.line(screen, 'green', (px,py), (px+self.dirvectorx*15,py+self.dirvectory*15),2)
+
+
+class Enemy(Entity) : 
+    speed = 2
+    def __init__(self,enemy_x_tile, enemy_y_tile):
+        self.x = (enemy_x_tile-1)*TILE+TILE/2
+        self.y = (enemy_y_tile)*TILE+TILE/2
+    
+    def track_position(self) : 
+        self.tilex = int(self.x//TILE)
+        self.tiley = int(self.y//TILE)
+
+    def movement_follow(self,playerX, playerY):
+        dx = playerX - self.x
+        dy = playerY - self.y
+        if dx != 0 and dy!= 0 : 
+            angle = math.atan2(dy,dx)
+            self.edx = self.speed*math.cos(angle)
+            self.edy = self.speed*math.sin(angle)
+            self.track_position()
+            self.handle_collision()
+
+    def handle_collision(self) : 
+        tile_ox = int((self.x+self.edx)//TILE)
+        tile_oy = int((self.y+self.edy)//TILE)
+        if map[self.tiley][tile_ox] != 0 :
+            self.edx = 0
+        if map[tile_oy][self.tilex] !=0 : 
+            self.edy = 0
+        self.x += self.edx
+        self.y += self.edy
+
+    def draw_enemy(self,camx, camy) : 
+        x_onscreen = self.x - camx + screenx//2
+        y_onscreen = self.y - camy + screeny//2
+        pg.draw.circle(screen,'red',(x_onscreen, y_onscreen),4)
+
+
+bullet_managers= bullet_manager(50)
+A = Main_player(5,5,math.pi/2)
+Map.render_map()
+map_surface = map_surface.convert()
+X= Enemy(2,10)
+while running:
+    #input
+    A.track_keys()
+    #update
+    A.track_position()
+    bullet_managers.update_bullet()
+    X.movement_follow(A.real_px, A. real_py)
+    #draw
+    screen.fill('grey') #fill nền trước rồi mới render main
+    Map.draw_map(A.camx,A.camy)
+    A.render_player()
+    bullet_managers.draw_bullets(screen,A.camx,A.camy)
+    X. draw_enemy(A.camx, A.camy)
+    pg.display.flip()
+    clock.tick(60)  # Giới hạn tốc độ khung hình
+
+# Thoát
+pg.quit()
+sys.exit()
+
+#player_onscreen = player_world- cam coordinate +  screenx,y/2
+#What is next? Coding enemy AI. I am now working on artificial decision making & tactical movements.
