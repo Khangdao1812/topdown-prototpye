@@ -1,0 +1,145 @@
+import pygame
+import sys
+
+# ================== CONSTANTS ==================
+WIDTH, HEIGHT = 600, 600
+TILE = 30
+ROWS = WIDTH // TILE
+COLS = HEIGHT // TILE
+
+WHITE = (240, 240, 240)
+BLACK = (20, 20, 20)
+GRAY  = (180, 180, 180)
+RED   = (200, 0, 0)
+
+# ================== INIT ==================
+pygame.init()
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Grid Click Line Demo")
+clock = pygame.time.Clock()
+
+# ================== STATE ==================
+grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+clicked_tiles = []   # tối đa 2 tile
+
+# ================== FUNCTIONS ==================
+def reset():
+    global grid, clicked_tiles
+    grid = [[0 for _ in range(COLS)] for _ in range(ROWS)]
+    clicked_tiles.clear()
+
+def draw_grid():
+    for x in range(0, WIDTH, TILE):
+        pygame.draw.line(screen, GRAY, (x, 0), (x, HEIGHT))
+    for y in range(0, HEIGHT, TILE):
+        pygame.draw.line(screen, GRAY, (0, y), (WIDTH, y))
+
+def draw_tiles():
+    for i in range(ROWS):
+        for j in range(COLS):
+            if grid[i][j]:
+                pygame.draw.rect(screen,BLACK,(i*TILE, j*TILE, TILE, TILE))
+
+def tile_center(i, j):
+    return (i*TILE + TILE//2, j*TILE + TILE//2)
+
+def calculate(p1x,p1y,p2x,p2y) :
+    deltax,deltay = p2x - p1x,p2y-p1y
+    if abs(deltax)>1e-3 : 
+        dx,dy = (1 if deltax>0 else -1), abs(deltay/deltax)* (-1 if deltay<0 else 1)
+    else : 
+        dx,dy = 0, (1 if deltay>0 else -1)
+    if abs(dy)<1e-3 : 
+        t_horizontal = float('inf')
+    else : 
+        wall_y_h = TILE*int(p1y//TILE)+(TILE if dy>0 else 0)
+        wall_x_h = p1x+dx*(wall_y_h-p1y)/dy
+        h_x = abs(TILE*dx/dy)*(1 if dx>0 else -1)
+        h_y = TILE*(1 if dy>0 else -1) 
+    if abs(dx)<1e-3 : 
+        t_vertical = float('inf')
+    else : 
+        wall_x_v = TILE*int(p1x//TILE)+(TILE if dx > 0 else 0)
+        wall_y_v = p1y+dy*(wall_x_v-p1x)/dx 
+        v_y = abs(TILE*dy/dx)*(1 if dy>0 else -1)
+        v_x = TILE*(1 if dx>0 else -1)
+
+    if abs(dx)<1e-3 : 
+        t_to_player = (p2y-p1y)/dy
+    else : t_to_player = (p2x-p1x)/dx
+    while True : 
+        #Vì mỗi bước tăng ta tính lại chứ không += nên gộp lại lần đầu với trong loop luôn
+        if abs(dy)>= 1e-3 : 
+            t_horizontal = (wall_y_h-p1y)/dy #tính bằng dy để sử dụng cái điều kiện trước đã loại dy =0
+        if abs(dx)>=1e-3 : 
+            t_vertical = (wall_x_v-p1x)/dx #tính bằng dx để sử dụng cái điều kiện trước đã loại dx =0
+
+        if t_horizontal < t_vertical : 
+            x,y = wall_x_h, wall_y_h
+            wall_x_h += h_x
+            wall_y_h += h_y
+            t = t_horizontal
+        else : 
+            x,y = wall_x_v, wall_y_v
+            wall_x_v += v_x
+            wall_y_v += v_y
+            t = t_vertical
+        if t>t_to_player :
+            break
+        else : 
+            tilex = (round(x/TILE) if abs(x/TILE - round(x/TILE))<1e-6 else int(x//TILE))
+            tiley = (round(y/TILE) if abs(y/TILE - round(y/TILE))<1e-6 else int(y//TILE))
+            central = ((abs(x-round(x))<1e-4 and round(x)%TILE ==0) and (abs(y-round(y))<1e-4 and round(y)%TILE==0))
+            grid[tilex][tiley]=1
+            if not central :
+                if t == t_horizontal : 
+                    grid[tilex][tiley-1]=1
+                else : 
+                    grid[tilex-1][tiley] =1
+            else : 
+                grid[tilex -1][tiley]=1
+                grid[tilex][tiley-1]=1
+                grid[tilex -1][tiley-1]=1
+                #chắc chắn sẽ phải process lại cái horizontal vị trí cũ. Đáng lẽ phải += cả 2 vị trí intersect x,y luôn nhưng làm thì dài k cần
+    #Bug đáng nhớ : sử dụng int(x,y//TILE) dẫn đến việc step từ a.99999999 bị xuống tile a/TILE => check sai tile dẫn đến tilex,y chạy lên 
+    # ==> u lồi lõm. Bản chất là round down. => check 4 tile sai khi qua central
+    # lý do DDA không bị là vì 1. Né 45 độ 2 => có thể modify check những tile nào dựa trên horizontal/vertical intersection theo gốc tilex,y
+
+
+    # ================== MAIN LOOP ==================
+while True:
+    clock.tick(60)
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        # ---- CLICK ----
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if len(clicked_tiles) > -1:   # GIỚI HẠN 2 Ô
+                mx, my = pygame.mouse.get_pos()
+                i, j = mx // TILE, my // TILE
+
+                if 0 <= i < ROWS and 0 <= j < COLS:
+                    grid[i][j] = 1
+                    clicked_tiles.append((i, j))
+                if len(clicked_tiles)==2 : 
+                    calculate(TILE*(clicked_tiles[0][0]+0.5),TILE*(clicked_tiles[0][1]+0.5),TILE*(clicked_tiles[1][0]+0.5),TILE*(clicked_tiles[1][1]+0.5))
+
+        # ---- KEY ----
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                reset()
+
+    # ================== DRAW ==================
+    screen.fill(WHITE)
+    draw_tiles()
+    draw_grid()
+
+    if len(clicked_tiles) == 2:
+        p1 = tile_center(*clicked_tiles[0])
+        p2 = tile_center(*clicked_tiles[1])
+        pygame.draw.line(screen, RED, p1, p2,1)
+
+    pygame.display.flip()
